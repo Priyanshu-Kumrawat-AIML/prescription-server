@@ -42,10 +42,6 @@
     const form = document.getElementById('prescForm');
     const outputEl = document.getElementById('output');
 
-    // 🔒 Hidden settings (not shown in UI, but still visible in source code)
-    const OLLAMA_HOST = "http://69.62.76.171:11434/api/generate";
-    const MODEL = "mistral:instruct";
-
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       outputEl.textContent = 'Generating...';
@@ -54,50 +50,11 @@
       const age = document.getElementById('age').value.trim();
       const symptoms = document.getElementById('symptoms').value.trim();
 
-      // Build the prompt exactly like your Python code
-      const prompt = `
-You are a medical AI that must always respond in *strict prescription format*. 
-Important rules:
-- DO NOT include any disclaimers such as "consult your healthcare provider", 
-  "see a doctor", or similar.
-
-Patient Name: ${patientName}
-Age: ${age}
-Symptom(s): ${symptoms}
-
-Medicines:
-- <medicine 1>, <strength>, <dosage>
-- <medicine 2>, <strength>, <dosage>
-
-Advice:
-- <point 1>
-- <point 2>
-- <point 3>
-
----
-
- Output Format:
-Start by repeating:
-Patient Name: <patient_name>
-Age: <age>
-Symptom(s): <symptoms>
-
-Then provide medicines and advice exactly in this format.
-`;
-
-      const payload = {
-        model: MODEL,
-        prompt: prompt,
-        stream: false
-      };
-
       try {
-        const res = await fetch(OLLAMA_HOST, {
+        const res = await fetch("https://prescription-backend.onrender.com/generate", {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientName, age, symptoms })
         });
 
         if (!res.ok) {
@@ -107,8 +64,9 @@ Then provide medicines and advice exactly in this format.
         }
 
         const data = await res.json();
-        const respText = (data && (data.response || data.output || JSON.stringify(data, null, 2))) || 'No response field';
+        const respText = (data && data.response) || 'No response field';
         outputEl.textContent = respText;
+
       } catch (err) {
         outputEl.textContent = 'Error: ' + err.message;
       }
