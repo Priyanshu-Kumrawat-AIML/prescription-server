@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prescription Generator</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 820px; margin: 24px auto; padding: 0 16px; }
+    label { display:block; margin-top:12px; font-weight:600; }
+    input, textarea, button { width:100%; padding:8px; margin-top:6px; box-sizing:border-box; }
+    textarea { min-height:120px; }
+    pre { background:#111; color:#e8e8e8; padding:12px; border-radius:6px; white-space:pre-wrap; }
+    .row { display:flex; gap:12px }
+    .row > * { flex:1; }
+  </style>
+</head>
+<body>
+  <h1>Prescription Generator</h1>
+
+  <form id="prescForm">
+    <label>Patient Name
+      <input id="patientName" required value="harry" />
+    </label>
+
+    <div class="row">
+      <label>Age
+        <input id="age" type="number" required value="45" />
+      </label>
+    </div>
+
+    <label>Symptoms
+      <textarea id="symptoms" required>chest pain</textarea>
+    </label>
+
+    <button type="submit">Generate Prescription</button>
+  </form>
+
+  <h2>Output</h2>
+  <pre id="output">No output yet.</pre>
+
+  <script>
+    const form = document.getElementById('prescForm');
+    const outputEl = document.getElementById('output');
+
+    // 🔒 Hidden settings (not shown in UI, but still visible in source code)
+    const OLLAMA_HOST = "http://69.62.76.171:11434/api/generate";
+    const MODEL = "mistral:instruct";
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      outputEl.textContent = 'Generating...';
+
+      const patientName = document.getElementById('patientName').value.trim();
+      const age = document.getElementById('age').value.trim();
+      const symptoms = document.getElementById('symptoms').value.trim();
+
+      // Build the prompt exactly like your Python code
+      const prompt = `
+You are a medical AI that must always respond in *strict prescription format*. 
+Important rules:
+- DO NOT include any disclaimers such as "consult your healthcare provider", 
+  "see a doctor", or similar.
+
+Patient Name: ${patientName}
+Age: ${age}
+Symptom(s): ${symptoms}
+
+Medicines:
+- <medicine 1>, <strength>, <dosage>
+- <medicine 2>, <strength>, <dosage>
+
+Advice:
+- <point 1>
+- <point 2>
+- <point 3>
+
+---
+
+ Output Format:
+Start by repeating:
+Patient Name: <patient_name>
+Age: <age>
+Symptom(s): <symptoms>
+
+Then provide medicines and advice exactly in this format.
+`;
+
+      const payload = {
+        model: MODEL,
+        prompt: prompt,
+        stream: false
+      };
+
+      try {
+        const res = await fetch(OLLAMA_HOST, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          outputEl.textContent = `Request failed: ${res.status} ${res.statusText}\n\n${text}`;
+          return;
+        }
+
+        const data = await res.json();
+        const respText = (data && (data.response || data.output || JSON.stringify(data, null, 2))) || 'No response field';
+        outputEl.textContent = respText;
+      } catch (err) {
+        outputEl.textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
